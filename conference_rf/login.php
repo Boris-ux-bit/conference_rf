@@ -1,12 +1,5 @@
 <?php
 session_start();
-
-// ОЧИЩАЕМ СЕССИЮ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ ВХОДА
-// Это гарантирует, что никакие старые данные не останутся
-session_unset();
-session_destroy();
-session_start();
-
 require_once 'config.php';
 
 $error = '';
@@ -15,28 +8,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $login = trim($_POST['login'] ?? '');
     $password = $_POST['password'] ?? '';
     
+    // ПРЯМАЯ ПРОВЕРКА ДЛЯ АДМИНИСТРАТОРА
+    if ($login === 'Admin26' && $password === 'Demo20') {
+        $_SESSION['user_id'] = 1;
+        $_SESSION['user_login'] = 'Admin26';
+        $_SESSION['user_role'] = 'admin';
+        header('Location: admin2.php');  // <--- ИЗМЕНЕНО!
+        exit;
+    }
+    
+    // Обычная проверка для остальных пользователей
     if (empty($login) || empty($password)) {
         $error = 'Заполните все поля';
     } else {
-        // Ищем пользователя в БД
         $stmt = $pdo->prepare("SELECT * FROM users WHERE login = ?");
         $stmt->execute([$login]);
         $user = $stmt->fetch();
         
         if ($user) {
-            // Проверяем пароль
-            if (password_verify($password, $user['password'])) {
-                // Очищаем сессию ещё раз перед записью новых данных
-                session_unset();
-                
-                // Записываем данные ТОЛЬКО этого пользователя
+            if (password_verify($password, $user['password']) || $password === $user['password']) {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_login'] = $user['login'];
                 $_SESSION['user_role'] = $user['role'];
                 
-                // Перенаправляем в зависимости от роли
                 if ($user['role'] === 'admin') {
-                    header('Location: admin_panel.php');
+                    header('Location: admin2.php');  // <--- ИЗМЕНЕНО!
                 } else {
                     header('Location: profile.php');
                 }
@@ -61,10 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         .admin-hint {
             background: #e8f0fe;
-            padding: 12px;
+            padding: 15px;
             border-radius: 10px;
             text-align: center;
-            margin-top: 20px;
+            margin-top: 25px;
         }
         .error-box {
             background: #f8d7da;
@@ -73,6 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 10px;
             margin-bottom: 20px;
             border-left: 4px solid #e74c3c;
+        }
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -83,32 +83,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p>Бронирование помещений для конференций</p>
         </div>
         <div class="content">
-            <h2 style="text-align: center;">🔑 Вход в систему</h2>
-            
-            <?php if($error): ?>
-                <div class="error-box">❌ <?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
-            
-            <form method="POST">
-                <div class="form-group">
-                    <label>👤 Логин</label>
-                    <input type="text" name="login" required>
-                </div>
+            <div class="login-form">
+                <h2 style="text-align: center;">🔑 Вход в систему</h2>
                 
-                <div class="form-group">
-                    <label>🔒 Пароль</label>
-                    <input type="password" name="password" required>
-                </div>
+                <?php if($error): ?>
+                    <div class="error-box">❌ <?= htmlspecialchars($error) ?></div>
+                <?php endif; ?>
                 
-                <button type="submit" class="btn">Войти</button>
+                <form method="POST">
+                    <div class="form-group">
+                        <label>👤 Логин</label>
+                        <input type="text" name="login" placeholder="Введите логин" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔒 Пароль</label>
+                        <input type="password" name="password" placeholder="Введите пароль" required>
+                    </div>
+                    
+                    <button type="submit" class="btn">🚪 Войти</button>
+                    
+                    <div class="nav-links" style="text-align: center; margin-top: 15px;">
+                        <a href="register.php">📝 Ещё не зарегистрированы? Регистрация</a>
+                    </div>
+                </form>
                 
-                <div class="nav-links">
-                    <a href="register.php">📝 Ещё не зарегистрированы? Регистрация</a>
+                <div class="admin-hint">
+                    👑 <strong>Тестовые данные:</strong><br>
+                    Администратор: <strong>Admin26</strong> / <strong>Demo20</strong><br>
+                    Обычный пользователь: зарегистрируйтесь сами
                 </div>
-            </form>
-            
-            <div class="admin-hint">
-                👑 <strong>Администратор:</strong> Логин: <strong>Admin26</strong> / Пароль: <strong>Demo20</strong>
             </div>
         </div>
     </div>
